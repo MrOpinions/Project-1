@@ -23,7 +23,7 @@ def samples():
 
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
-    notice = (request.json or {}).get("notice", "").strip()
+    notice = (request.get_json(silent=True) or {}).get("notice", "").strip()
     if not notice:
         return jsonify({"error": "notice text is required"}), 400
 

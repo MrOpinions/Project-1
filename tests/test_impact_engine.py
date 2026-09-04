@@ -72,3 +72,21 @@ def test_spare_stock_not_double_counted_across_orders_in_same_batch():
 def test_unrelated_entity_type_produces_no_exposure():
     conn = connect()
     assert find_exposed_order_lines(conn, "customer", "C1") == []
+
+
+def test_recommended_index_points_at_part_ship_when_delay_unstated_but_spare_exists():
+    """Regression: Coastal Gasket Works (S1) disrupted with no stated delay
+    magnitude means slip_days is None for its pending-PO exposures, so
+    "expedite" is never offered. CO1 and CO3 both draw on product P1, which
+    has spare on-hand stock (SL1), so part_ship should be offered and
+    recommended - previously recommended was hardcoded to index 1, which
+    silently pointed at "reallocate" instead once "expedite" dropped out of
+    the options list."""
+    conn = connect()
+    exposures = find_exposed_order_lines(conn, "supplier", "S1")
+    exposures = apply_disruption(exposures, delay_days=None, today=date.today())
+    batch = generate_options_for_batch(conn, exposures)
+
+    co1_index = next(i for i, e in enumerate(exposures) if e.customer_order_id == "CO1")
+    options, recommended = batch[co1_index]
+    assert options[recommended].kind == "part_ship"

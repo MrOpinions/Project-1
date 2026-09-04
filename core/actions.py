@@ -109,9 +109,13 @@ def _generate_options(
             new_estimate=exp.revised_ready_date,
         ))
 
-        recommended = 0 if exp.slip_days and exp.customer_tier in ("vip", "priority") else (
-            1 if spare > 0 else len(options) - 1
-        )
+        kinds = [o.kind for o in options]
+        if exp.slip_days and exp.customer_tier in ("vip", "priority") and "expedite" in kinds:
+            recommended = kinds.index("expedite")
+        elif spare > 0 and "part_ship" in kinds:
+            recommended = kinds.index("part_ship")
+        else:
+            recommended = kinds.index("notify_customer")
 
     else:  # on_hand_stock at risk (e.g. warehouse incident)
         if spare >= exp.quantity:
