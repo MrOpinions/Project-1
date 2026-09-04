@@ -28,6 +28,29 @@ report, wired to a single-page UI. See commit history for build order.
 
 ## How it works (architecture)
 
+```mermaid
+flowchart TD
+    A[Disruption notice text] --> B["extraction.py<br/>Gemini: strict-schema JSON<br/>(mentions, disruption type, delay)"]
+    B --> C["resolution.py<br/>embed mentions (Gemini) + cosine<br/>similarity vs. precomputed index,<br/>fuzzy-match fallback"]
+    D[(data/embeddings.npz<br/>precomputed, committed)] --> C
+    C -->|no confident match| E[No impact: unresolved]
+    C -->|resolved supplier/product/carrier| F["impact_engine.py<br/>deterministic SQL traversal:<br/>pending POs, shipments, stock lots"]
+    G[(data/distributor.db)] --> F
+    F -->|nothing pending| E
+    F -->|exposed order_lines| H["impact_engine.py<br/>slip calc + urgency ranking<br/>(pure Python, no LLM)"]
+    H --> I["actions.py<br/>expedite / part-ship / reallocate /<br/>notify, shared spare-stock pool"]
+    I --> J["report.py<br/>Gemini narrative, grounded to<br/>computed facts only, citation-checked"]
+    J --> K[Impact assessment + ranked action plan]
+    E --> K
+```
+
+Only two things ever touch Gemini: **extraction** (raw notice → structured
+fields) and the **narrative** (computed facts → prose, checked afterward for
+citations it wasn't given). Everything in between - resolution thresholds,
+SQL traversal, slip/urgency math, option generation - is deterministic
+Python, which is what makes every number in the final report traceable back
+to a specific record ID.
+
 - **Deterministic core, LLM at the edges.** All impact reasoning - what stock is
   affected, which orders slip, by how many days, urgency ranking, trade-off costs -
   is plain Python running relational queries over the seeded dataset. The only
