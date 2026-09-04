@@ -62,4 +62,7 @@ def extract(notice_text: str) -> dict:
     )
     import json
 
-    return json.loads(resp.text)
+    try:
+        return json.loads(resp.text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Gemini returned non-JSON output despite response_schema: {resp.text!r}") from exc
