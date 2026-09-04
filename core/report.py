@@ -100,23 +100,40 @@ def _facts_payload(disruption_type: str, notice_summary: str, affected: list[Aff
     }
 
 
-def _write_narrative(facts: dict, grounding_ids: set[str]) -> str:
-    client = get_client()
-    resp = client.models.generate_content(
-        model=GENERATION_MODEL,
-        contents=NARRATIVE_PROMPT.format(facts=json.dumps(facts, indent=2)),
-        config=types.GenerateContentConfig(temperature=0),
+def _fact_only_narrative(facts: dict, reason: str) -> str:
+    ids_line = ", ".join(sorted(f["order_id"] for f in facts["affected_orders"]))
+    return (
+        f"{facts['notice_summary']} This affects {facts['affected_order_count']} order(s): {ids_line}. "
+        f"({reason})"
     )
-    text = resp.text.strip()
 
+
+def _write_narrative(facts: dict, grounding_ids: set[str]) -> str:
+    """Narrative wording is a nice-to-have, not load-bearing - if Gemini is
+    slow or unavailable, the report still returns with a deterministic
+    fact-only summary rather than failing the whole request."""
+    client = get_client()
+    try:
+        resp = client.models.generate_content(
+            model=GENERATION_MODEL,
+            contents=NARRATIVE_PROMPT.format(facts=json.dumps(facts, indent=2)),
+            config=types.GenerateContentConfig(
+                temperature=0,
+                http_options=types.HttpOptions(
+                    timeout=8_000,
+                    retry_options=types.HttpRetryOptions(attempts=1),
+                ),
+            ),
+        )
+    except Exception:
+        return _fact_only_narrative(facts, "Narrative generation was unavailable; showing verified facts only.")
+
+    text = resp.text.strip()
     mentioned_ids = set(ID_PATTERN.findall(text))
     ungrounded = mentioned_ids - grounding_ids
     if ungrounded:
-        ids_line = ", ".join(sorted(f["order_id"] for f in facts["affected_orders"]))
-        text = (
-            f"{facts['notice_summary']} This affects {facts['affected_order_count']} order(s): {ids_line}. "
-            "(Narrative generation cited an ID outside the verified data and was replaced with this "
-            "fact-only summary.)"
+        return _fact_only_narrative(
+            facts, "Narrative generation cited an ID outside the verified data and was replaced."
         )
     return text
 

@@ -41,21 +41,21 @@ class Resolution:
     method: str  # "embedding" | "fuzzy" | "unresolved"
 
 
-def _embed(text: str) -> np.ndarray:
+def _embed_batch(texts: list[str]) -> np.ndarray:
+    """One Gemini call embeds every mention at once, instead of one call per
+    mention - keeps per-request latency well under the 60s budget."""
     client = get_client()
     resp = client.models.embed_content(
         model=EMBEDDING_MODEL,
-        contents=text,
+        contents=texts,
         config=types.EmbedContentConfig(output_dimensionality=EMBEDDING_DIM),
     )
-    return np.array(resp.embeddings[0].values, dtype=np.float32)
+    return np.array([e.values for e in resp.embeddings], dtype=np.float32)
 
 
-def resolve_mention(mention: str) -> Resolution:
-    idx = _load_index()
+def _resolve_one(mention: str, qv: np.ndarray, idx: dict) -> Resolution:
     keys, texts, vectors = idx["keys"], idx["texts"], idx["vectors"]
 
-    qv = _embed(mention)
     sims = vectors @ qv / (np.linalg.norm(vectors, axis=1) * np.linalg.norm(qv) + 1e-9)
     best_i = int(np.argmax(sims))
     best_sim = float(sims[best_i])
@@ -75,4 +75,8 @@ def resolve_mention(mention: str) -> Resolution:
 
 
 def resolve_mentions(mentions: list[str]) -> list[Resolution]:
-    return [resolve_mention(m) for m in mentions]
+    if not mentions:
+        return []
+    idx = _load_index()
+    query_vectors = _embed_batch(mentions)
+    return [_resolve_one(m, qv, idx) for m, qv in zip(mentions, query_vectors)]
