@@ -3,6 +3,12 @@ const btnEl = document.getElementById("analyze-btn");
 const resultEl = document.getElementById("result");
 const pickerEl = document.getElementById("sample-picker");
 
+function esc(s) {
+  const div = document.createElement("div");
+  div.textContent = s ?? "";
+  return div.innerHTML;
+}
+
 async function loadSamples() {
   const res = await fetch("/api/samples");
   const samples = await res.json();
@@ -26,9 +32,9 @@ function renderOption(o, isRecommended) {
   const div = document.createElement("div");
   div.className = "option" + (isRecommended ? " recommended" : "");
   div.innerHTML = `
-    <div class="option-head">${isRecommended ? "RECOMMENDED &rarr; " : ""}<strong>${o.kind.replace("_", " ")}</strong></div>
-    <div class="option-desc">${o.description}</div>
-    <div class="option-tradeoff">Trade-off: ${o.trade_off}</div>
+    <div class="option-head">${isRecommended ? "RECOMMENDED &rarr; " : ""}<strong>${esc(o.kind.replace("_", " "))}</strong></div>
+    <div class="option-desc">${esc(o.description)}</div>
+    <div class="option-tradeoff">Trade-off: ${esc(o.trade_off)}</div>
   `;
   return div;
 }
@@ -39,12 +45,12 @@ function renderOrder(o) {
   const slip = o.slip_days === null ? "unquantified" : `${o.slip_days}d slip`;
   div.innerHTML = `
     <div class="order-head">
-      <span class="order-id">${o.order_id}</span>
-      <span class="tier tier-${o.tier}">${o.tier}</span>
-      <span class="urgency">urgency ${o.urgency_score}</span>
+      <span class="order-id">${esc(o.order_id)}</span>
+      <span class="tier tier-${esc(o.tier)}">${esc(o.tier)}</span>
+      <span class="urgency">urgency ${esc(String(o.urgency_score))}</span>
     </div>
-    <div class="order-meta">${o.customer} &middot; ${o.quantity}&times; ${o.product} &middot; due ${fmtDate(o.requested_delivery_date)} &middot; ${slip}</div>
-    <div class="order-trace">source: ${o.source_ids.join(", ")}</div>
+    <div class="order-meta">${esc(o.customer)} &middot; ${esc(String(o.quantity))}&times; ${esc(o.product)} &middot; due ${esc(fmtDate(o.requested_delivery_date))} &middot; ${esc(slip)}</div>
+    <div class="order-trace">source: ${esc(o.source_ids.join(", "))}</div>
   `;
   const optsWrap = document.createElement("div");
   optsWrap.className = "options";
@@ -69,13 +75,13 @@ async function analyze() {
     });
     const data = await res.json();
     if (!res.ok) {
-      resultEl.innerHTML = `<div class="error">${data.error || "Request failed."}</div>`;
+      resultEl.innerHTML = `<div class="error">${esc(data.error || "Request failed.")}</div>`;
       resultEl.hidden = false;
       return;
     }
     render(data);
   } catch (e) {
-    resultEl.innerHTML = `<div class="error">Something went wrong: ${e}</div>`;
+    resultEl.innerHTML = `<div class="error">Something went wrong: ${esc(String(e))}</div>`;
     resultEl.hidden = false;
   } finally {
     btnEl.disabled = false;
@@ -89,14 +95,14 @@ function render(data) {
 
   const narrative = document.createElement("div");
   narrative.className = "narrative " + (data.no_impact ? "no-impact" : "impact");
-  narrative.innerHTML = `<strong>${data.no_impact ? "NO IMPACT" : "IMPACT ASSESSMENT"}</strong><p>${data.narrative}</p>`;
+  narrative.innerHTML = `<strong>${data.no_impact ? "NO IMPACT" : "IMPACT ASSESSMENT"}</strong><p>${esc(data.narrative)}</p>`;
   resultEl.appendChild(narrative);
 
   if (data.resolved_entities.length || data.unresolved_mentions.length) {
     const trace = document.createElement("div");
     trace.className = "trace-panel";
     const resolvedHtml = data.resolved_entities
-      .map(r => `<li>"${r.mention}" &rarr; ${r.entity_key ?? "no confident match"} (${r.method}, score ${r.score})</li>`)
+      .map(r => `<li>"${esc(r.mention)}" &rarr; ${esc(r.entity_key ?? "no confident match")} (${esc(r.method)}, score ${esc(String(r.score))})</li>`)
       .join("");
     trace.innerHTML = `<details><summary>Entity resolution (${data.resolved_entities.length})</summary><ul>${resolvedHtml}</ul></details>`;
     resultEl.appendChild(trace);
