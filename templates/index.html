@@ -6,7 +6,25 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <h1>Disruption Response Assistant</h1>
-  <p>Work in progress.</p>
+  <header>
+    <h1>Disruption Response Assistant</h1>
+    <p class="sub">Paste a disruption notice as it actually arrives. The system maps it to your data, traces the impact, and proposes an action plan. It does not act on its own.</p>
+  </header>
+
+  <main>
+    <section class="input-panel">
+      <textarea id="notice" placeholder="Paste a supplier email, carrier delay notice, or warehouse incident report here..."></textarea>
+      <div class="controls">
+        <select id="sample-picker">
+          <option value="">Load a sample notice...</option>
+        </select>
+        <button id="analyze-btn">Analyze</button>
+      </div>
+    </section>
+
+    <section id="result" class="result-panel" hidden></section>
+  </main>
+
+  <script src="/static/app.js"></script>
 </body>
 </html>
