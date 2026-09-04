@@ -7,7 +7,7 @@ citations it wasn't given.
 import json
 import re
 import sqlite3
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import date
 
 from google.genai import types
@@ -164,7 +164,7 @@ def build_report(notice_text: str, today: date | None = None) -> ImpactReport:
         )
 
     delay_days = fields.get("delay_days") if fields.get("disruption_type") != "warehouse_incident" else None
-    exposures = apply_disruction_safe(exposures, delay_days, today)
+    exposures = apply_disruption(exposures, delay_days, today)
     batch = generate_options_for_batch(conn, exposures)
     affected = [
         AffectedOrderReport(exposure=e, options=opts, recommended_index=rec)
@@ -185,7 +185,3 @@ def build_report(notice_text: str, today: date | None = None) -> ImpactReport:
         narrative=narrative,
         grounding_ids=grounding_ids,
     )
-
-
-def apply_disruction_safe(exposures, delay_days, today):
-    return apply_disruption(exposures, delay_days, today)
