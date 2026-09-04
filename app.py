@@ -21,6 +21,11 @@ def samples():
     return jsonify(json.loads(SAMPLE_NOTICES_PATH.read_text()))
 
 
+@app.route("/favicon.ico")
+def favicon():
+    return "", 204
+
+
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
     notice = (request.get_json(silent=True) or {}).get("notice", "").strip()
