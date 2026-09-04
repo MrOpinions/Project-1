@@ -3,11 +3,15 @@
 Run: python -m pytest tests/test_impact_engine.py -v
 """
 
+import sqlite3
 from datetime import date
+from pathlib import Path
 
 from core.actions import generate_options_for_batch
 from core.db import connect
 from core.impact_engine import apply_disruption, find_exposed_order_lines
+
+SCHEMA_PATH = Path(__file__).parent.parent / "data" / "schema.sql"
 
 
 def test_supplier_disruption_exposes_pending_pos_not_on_hand_stock():
@@ -90,3 +94,42 @@ def test_recommended_index_points_at_part_ship_when_delay_unstated_but_spare_exi
     co1_index = next(i for i, e in enumerate(exposures) if e.customer_order_id == "CO1")
     options, recommended = batch[co1_index]
     assert options[recommended].kind == "part_ship"
+
+
+def _minimal_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(SCHEMA_PATH.read_text())
+    conn.execute("INSERT INTO suppliers VALUES ('S1','Test Supplier','Nowhere','widgets','reliable')")
+    conn.execute("INSERT INTO products VALUES ('P1','SKU-1','Widget','widgets','each')")
+    conn.execute(
+        "INSERT INTO purchase_orders VALUES ('PO1','S1','P1',100,'2026-01-01','2026-02-01','in_transit')"
+    )
+    conn.execute("INSERT INTO customers VALUES ('C1','Test Customer','standard','Nowhere')")
+    return conn
+
+
+def test_already_fulfilled_order_is_not_reported_as_affected():
+    """An order_line can reference a PO that later gets disrupted, but if the
+    customer order already shows fulfilled/shipped, the disruption to its
+    source PO no longer affects a delivery that already happened - it must
+    not appear in the exposure list."""
+    conn = _minimal_conn()
+    conn.execute(
+        "INSERT INTO customer_orders VALUES ('CO1','C1','2026-01-01','2026-01-15','fulfilled')"
+    )
+    conn.execute("INSERT INTO order_lines VALUES ('OL1','CO1','P1',10,NULL,'PO1')")
+
+    exposures = find_exposed_order_lines(conn, "supplier", "S1")
+    assert exposures == []
+
+
+def test_pending_order_on_same_po_is_still_reported():
+    conn = _minimal_conn()
+    conn.execute(
+        "INSERT INTO customer_orders VALUES ('CO2','C1','2026-01-01','2026-01-15','allocated')"
+    )
+    conn.execute("INSERT INTO order_lines VALUES ('OL2','CO2','P1',10,NULL,'PO1')")
+
+    exposures = find_exposed_order_lines(conn, "supplier", "S1")
+    assert {e.customer_order_id for e in exposures} == {"CO2"}

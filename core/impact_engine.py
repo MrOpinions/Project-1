@@ -64,12 +64,22 @@ def _find_shipments_for_carrier(conn: sqlite3.Connection, carrier: str) -> list[
     ).fetchall()
 
 
+_OPEN_ORDER_JOIN = """JOIN customer_orders co ON co.id = ol.customer_order_id
+                       WHERE co.status NOT IN ('fulfilled', 'shipped')"""
+
+
 def _order_lines_for_po(conn: sqlite3.Connection, po_id: str) -> list[sqlite3.Row]:
-    return conn.execute("SELECT * FROM order_lines WHERE purchase_order_id=?", (po_id,)).fetchall()
+    # Excludes order lines whose customer order is already fulfilled/shipped -
+    # a disruption to the source PO no longer affects a delivery that already happened.
+    return conn.execute(
+        f"SELECT ol.* FROM order_lines ol {_OPEN_ORDER_JOIN} AND ol.purchase_order_id=?", (po_id,)
+    ).fetchall()
 
 
 def _order_lines_for_stock_lot(conn: sqlite3.Connection, lot_id: str) -> list[sqlite3.Row]:
-    return conn.execute("SELECT * FROM order_lines WHERE stock_lot_id=?", (lot_id,)).fetchall()
+    return conn.execute(
+        f"SELECT ol.* FROM order_lines ol {_OPEN_ORDER_JOIN} AND ol.stock_lot_id=?", (lot_id,)
+    ).fetchall()
 
 
 def _shipment_for_po(conn: sqlite3.Connection, po_id: str) -> sqlite3.Row | None:
