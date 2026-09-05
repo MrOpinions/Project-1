@@ -26,8 +26,7 @@ Speak plainly, don't rush the "no impact" beat, it's the differentiator.
 > reallocate, or just notify the customer, with the trade-off spelled
 > out."
 
-*(Screen: show the landing page hero, then click into Enter Workspace ->
-Operator Access gate -> the workspace.)*
+*(Screen: show the landing page hero, then click into Open Workspace.)*
 
 ## 0:45-1:30 - Live walkthrough (the core demo)
 
@@ -81,13 +80,12 @@ Operator Access gate -> the workspace.)*
 ## Shot list (what to actually have on screen)
 
 1. Landing page hero (2-3 sec, let the headline read).
-2. Click "Enter Workspace" -> gate page (1-2 sec, don't linger).
-3. Type/select operator fields, click "Enter Workspace" -> workspace.
-4. Load "Supplier fire - Coastal Gasket Works" sample, click Analyze.
-5. Scroll through the summary stats bar, then the CO1 card, hover the
+2. Click "Open Workspace" -> straight into the tool.
+3. Load "Supplier fire - Coastal Gasket Works" sample, click Analyze.
+4. Scroll through the summary stats bar, then the CO1 card, hover the
    recommended option.
-6. Click Clear, load "No impact - unrelated company", click Analyze.
-7. (Optional, if time allows) Quickly show the architecture diagram in
+5. Click Clear, load "No impact - unrelated company", click Analyze.
+6. (Optional, if time allows) Quickly show the architecture diagram in
    the README or a terminal running `pytest` to signal it's tested.
 
 ## Notes
