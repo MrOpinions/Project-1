@@ -51,6 +51,8 @@ def analyze():
         "disruption_type": report.disruption_type,
         "notice_summary": report.notice_summary,
         "narrative": report.narrative,
+        "narrative_status": report.narrative_status,
+        "narrative_cited_ids": report.narrative_cited_ids,
         "resolved_entities": [
             {"mention": r.mention, "entity_key": r.entity_key, "score": round(r.score, 3), "method": r.method}
             for r in report.resolved_entities

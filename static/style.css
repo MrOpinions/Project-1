@@ -12,6 +12,15 @@
   --ok: #3fb97a;
   --warn: #d99a3f;
   --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+
+  /* Status/severity ramp (fixed, never themed) - validated for a dark
+     surface: good -> warning -> serious -> critical. Used for urgency
+     everywhere so "risk level" always means the same color. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+  --status-track: #2a2e38;
 }
 
 * { box-sizing: border-box; }
@@ -232,6 +241,9 @@ button#analyze-btn:disabled { opacity: 0.6; cursor: default; }
 
 .urgency-pill {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -239,18 +251,178 @@ button#analyze-btn:disabled { opacity: 0.6; cursor: default; }
   border-radius: 999px;
   font-weight: 600;
 }
-.urgency-pill-critical { background: #4a1f22; color: #ff8a80; }
-.urgency-pill-high { background: #4a2f1a; color: var(--warn); }
-.urgency-pill-medium { background: #2f3a4a; color: var(--accent); }
-.urgency-pill-low { background: #1f3a2a; color: var(--ok); }
+.urgency-pill-critical { background: #3a1616; color: var(--status-critical); }
+.urgency-pill-high { background: #3a2416; color: var(--status-serious); }
+.urgency-pill-medium { background: #3a2f10; color: var(--status-warning); }
+.urgency-pill-low { background: #163a16; color: var(--status-good); }
+.urgency-pill-dot { font-size: 0.6rem; line-height: 1; }
 
-.order-card.urgency-critical { border-left: 3px solid #ff8a80; }
-.order-card.urgency-high { border-left: 3px solid var(--warn); }
-.order-card.urgency-medium { border-left: 3px solid var(--accent); }
-.order-card.urgency-low { border-left: 3px solid var(--ok); }
+.order-card.urgency-critical { border-left: 3px solid var(--status-critical); }
+.order-card.urgency-high { border-left: 3px solid var(--status-serious); }
+.order-card.urgency-medium { border-left: 3px solid var(--status-warning); }
+.order-card.urgency-low { border-left: 3px solid var(--status-good); }
 
 .order-meta { margin-top: 0.4rem; font-size: 0.88rem; color: var(--muted); }
 .order-trace { margin-top: 0.2rem; font-size: 0.78rem; color: #565b66; font-family: monospace; }
+
+/* ---- Severity meter (per order card) ---- */
+
+.severity-meter {
+  margin-top: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.severity-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--status-track);
+  overflow: hidden;
+}
+
+.severity-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+.severity-fill-critical { background: var(--status-critical); }
+.severity-fill-high { background: var(--status-serious); }
+.severity-fill-medium { background: var(--status-warning); }
+.severity-fill-low { background: var(--status-good); }
+
+.severity-value {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---- Risk overview chart (summary section) ---- */
+
+.risk-overview {
+  margin-top: 1.25rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+}
+
+.risk-overview-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 0.15rem;
+}
+
+.risk-overview-sub {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0 0 0.85rem;
+}
+
+.risk-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.9rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.risk-legend-item { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+.risk-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.risk-legend-dot-critical { background: var(--status-critical); }
+.risk-legend-dot-high { background: var(--status-serious); }
+.risk-legend-dot-medium { background: var(--status-warning); }
+.risk-legend-dot-low { background: var(--status-good); }
+
+.risk-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 90px;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.3rem 0;
+}
+
+.risk-row-label {
+  font-size: 0.82rem;
+  font-family: monospace;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.risk-row-track {
+  height: 16px;
+  border-radius: 4px;
+  background: var(--status-track);
+  overflow: hidden;
+}
+
+.risk-row-fill {
+  height: 100%;
+  border-radius: 4px;
+  min-width: 4px;
+}
+.risk-row-fill-critical { background: var(--status-critical); }
+.risk-row-fill-high { background: var(--status-serious); }
+.risk-row-fill-medium { background: var(--status-warning); }
+.risk-row-fill-low { background: var(--status-good); }
+
+.risk-row-value {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .risk-row { grid-template-columns: 70px 1fr 70px; gap: 0.4rem; }
+  .risk-row-label { font-size: 0.74rem; }
+}
+
+/* ---- Grounding check banner (narrative trust indicator) ---- */
+
+.grounding-check {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.grounding-check-icon { flex-shrink: 0; font-weight: 700; }
+
+.grounding-check-grounded {
+  color: var(--status-good);
+  border-color: rgba(12, 163, 12, 0.35);
+  background: rgba(12, 163, 12, 0.08);
+}
+.grounding-check-rejected_hallucination,
+.grounding-check-rejected_unavailable {
+  color: var(--status-warning);
+  border-color: rgba(250, 178, 25, 0.35);
+  background: rgba(250, 178, 25, 0.08);
+}
+
+.grounding-check-text { color: var(--muted); }
+.grounding-check-text strong { color: inherit; filter: brightness(1.3); }
+.grounding-check-ids {
+  margin-top: 0.2rem;
+  font-family: monospace;
+  font-size: 0.76rem;
+}
 
 .options { margin-top: 0.85rem; display: flex; flex-direction: column; gap: 0.5rem; }
 

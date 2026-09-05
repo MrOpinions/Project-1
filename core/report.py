@@ -30,6 +30,18 @@ class AffectedOrderReport:
 
 
 @dataclass
+class NarrativeResult:
+    text: str
+    # "grounded" - AI wrote it, every cited ID checked out against the data.
+    # "rejected_hallucination" - AI cited an ID outside the verified facts;
+    #   discarded and replaced.
+    # "rejected_unavailable" - the AI call itself failed/timed out; replaced.
+    # "deterministic" - no AI narrative call was made (the no-impact case).
+    status: str
+    cited_ids: list[str]
+
+
+@dataclass
 class ImpactReport:
     notice_summary: str
     disruption_type: str
@@ -38,6 +50,8 @@ class ImpactReport:
     affected_orders: list[AffectedOrderReport]
     no_impact: bool
     narrative: str
+    narrative_status: str
+    narrative_cited_ids: list[str]
     grounding_ids: set
 
 
@@ -108,10 +122,23 @@ def _fact_only_narrative(facts: dict, reason: str) -> str:
     )
 
 
-def _write_narrative(facts: dict, grounding_ids: set[str]) -> str:
+def check_narrative_grounding(text: str, grounding_ids: set[str]) -> tuple[bool, list[str]]:
+    """Pure grounding check, no network calls: every record-ID-shaped token
+    mentioned in the narrative must be one of the IDs actually behind this
+    report. Returns (all_grounded, cited_ids) - cited_ids is every ID found,
+    sorted, regardless of outcome, so a rejection can still show what was
+    (wrongly) cited."""
+    cited_ids = sorted(set(ID_PATTERN.findall(text)))
+    all_grounded = all(cid in grounding_ids for cid in cited_ids)
+    return all_grounded, cited_ids
+
+
+def _write_narrative(facts: dict, grounding_ids: set[str]) -> NarrativeResult:
     """Narrative wording is a nice-to-have, not load-bearing - if Gemini is
-    slow or unavailable, the report still returns with a deterministic
-    fact-only summary rather than failing the whole request."""
+    slow, unavailable, or cites something outside the verified facts, the
+    report still returns with a deterministic fact-only summary rather than
+    failing the whole request or showing an unverified claim."""
+    fallback_ids = sorted(f["order_id"] for f in facts["affected_orders"])
     client = get_client()
     try:
         resp = client.models.generate_content(
@@ -126,16 +153,23 @@ def _write_narrative(facts: dict, grounding_ids: set[str]) -> str:
             ),
         )
     except Exception:
-        return _fact_only_narrative(facts, "Narrative generation was unavailable; showing verified facts only.")
+        return NarrativeResult(
+            text=_fact_only_narrative(facts, "Narrative generation was unavailable; showing verified facts only."),
+            status="rejected_unavailable",
+            cited_ids=fallback_ids,
+        )
 
     text = resp.text.strip()
-    mentioned_ids = set(ID_PATTERN.findall(text))
-    ungrounded = mentioned_ids - grounding_ids
-    if ungrounded:
-        return _fact_only_narrative(
-            facts, "Narrative generation cited an ID outside the verified data and was replaced."
+    all_grounded, cited_ids = check_narrative_grounding(text, grounding_ids)
+    if not all_grounded:
+        return NarrativeResult(
+            text=_fact_only_narrative(
+                facts, "Narrative generation cited an ID outside the verified data and was replaced."
+            ),
+            status="rejected_hallucination",
+            cited_ids=fallback_ids,
         )
-    return text
+    return NarrativeResult(text=text, status="grounded", cited_ids=cited_ids)
 
 
 def build_report(notice_text: str, today: date | None = None) -> ImpactReport:
@@ -160,6 +194,8 @@ def build_report(notice_text: str, today: date | None = None) -> ImpactReport:
                 f"{fields.get('summary', 'Notice reviewed.')} No open purchase order, in-transit shipment, "
                 "or on-hand stock in the system is currently exposed to this. No action needed."
             ),
+            narrative_status="deterministic",
+            narrative_cited_ids=[],
             grounding_ids=set(),
         )
 
@@ -173,7 +209,7 @@ def build_report(notice_text: str, today: date | None = None) -> ImpactReport:
 
     grounding_ids = _grounding_ids(exposures)
     facts = _facts_payload(fields.get("disruption_type", "other"), fields.get("summary", ""), affected)
-    narrative = _write_narrative(facts, grounding_ids)
+    narrative_result = _write_narrative(facts, grounding_ids)
 
     return ImpactReport(
         notice_summary=fields.get("summary", ""),
@@ -182,6 +218,8 @@ def build_report(notice_text: str, today: date | None = None) -> ImpactReport:
         unresolved_mentions=unresolved,
         affected_orders=affected,
         no_impact=False,
-        narrative=narrative,
+        narrative=narrative_result.text,
+        narrative_status=narrative_result.status,
+        narrative_cited_ids=narrative_result.cited_ids,
         grounding_ids=grounding_ids,
     )

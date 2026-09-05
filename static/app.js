@@ -41,11 +41,28 @@ function urgencyTier(score) {
   return "low";
 }
 
+const TIER_LABEL = { critical: "Critical", high: "High", medium: "Medium", low: "Low" };
+
 const OPTION_ICON = {
   expedite: "⚡",
   part_ship: "◨",
   reallocate: "⇄",
   notify_customer: "✉",
+};
+
+const GROUNDING_CHECK = {
+  grounded: {
+    icon: "✓",
+    label: (n) => `${n}/${n} claims verified against source data`,
+  },
+  rejected_hallucination: {
+    icon: "⚠",
+    label: () => "AI narrative cited an unverified reference and was replaced with computer-verified facts",
+  },
+  rejected_unavailable: {
+    icon: "⚠",
+    label: () => "AI narrative was unavailable; showing computer-verified facts instead",
+  },
 };
 
 function renderOption(o, isRecommended) {
@@ -64,16 +81,21 @@ function renderOption(o, isRecommended) {
   return div;
 }
 
-function renderOrder(o) {
+function renderOrder(o, maxScore) {
   const div = document.createElement("div");
   const tier = urgencyTier(o.urgency_score);
   div.className = "order-card urgency-" + tier;
   const slip = o.slip_days === null ? "unquantified" : `${o.slip_days}d slip`;
+  const meterPct = Math.max(4, Math.round((o.urgency_score / maxScore) * 100));
   div.innerHTML = `
     <div class="order-head">
       <span class="order-id">${esc(o.order_id)}</span>
       <span class="tier tier-${esc(o.tier)}">${esc(o.tier)}</span>
-      <span class="urgency-pill urgency-pill-${tier}">${esc(tier)} &middot; ${esc(String(o.urgency_score))}</span>
+      <span class="urgency-pill urgency-pill-${tier}"><span class="urgency-pill-dot">&#9679;</span>${esc(TIER_LABEL[tier])}</span>
+    </div>
+    <div class="severity-meter">
+      <div class="severity-track"><div class="severity-fill severity-fill-${tier}" style="width:${meterPct}%"></div></div>
+      <span class="severity-value">${esc(String(o.urgency_score))}</span>
     </div>
     <div class="order-meta">${esc(o.customer)} &middot; ${esc(String(o.quantity))}&times; ${esc(o.product)} &middot; due ${esc(fmtDate(o.requested_delivery_date))} &middot; ${esc(slip)}</div>
     <div class="order-trace">source: ${esc(o.source_ids.join(", "))}</div>
@@ -99,6 +121,56 @@ function renderSummary(data) {
     <div class="stat"><span class="stat-value">${data.unresolved_mentions.length}</span><span class="stat-label">unresolved mentions</span></div>
   `;
   return bar;
+}
+
+function renderGroundingCheck(data) {
+  const spec = GROUNDING_CHECK[data.narrative_status];
+  if (!spec) return null; // "deterministic" (no-impact case) - no AI narrative to check
+
+  const div = document.createElement("div");
+  div.className = "grounding-check grounding-check-" + data.narrative_status;
+  const idsLine = data.narrative_cited_ids && data.narrative_cited_ids.length
+    ? `<div class="grounding-check-ids">${esc(data.narrative_cited_ids.join(", "))}</div>`
+    : "";
+  div.innerHTML = `
+    <span class="grounding-check-icon">${spec.icon}</span>
+    <div class="grounding-check-text"><strong>${esc(spec.label(data.narrative_cited_ids.length))}</strong>${idsLine}</div>
+  `;
+  return div;
+}
+
+function renderRiskOverview(data) {
+  const orders = data.affected_orders;
+  const maxScore = Math.max(...orders.map(o => o.urgency_score));
+
+  const div = document.createElement("div");
+  div.className = "risk-overview";
+
+  const rows = orders.map(o => {
+    const tier = urgencyTier(o.urgency_score);
+    const pct = Math.max(4, Math.round((o.urgency_score / maxScore) * 100));
+    const slip = o.slip_days === null ? "unquantified" : `${o.slip_days}d late`;
+    return `
+      <div class="risk-row">
+        <div class="risk-row-label">${esc(o.order_id)}</div>
+        <div class="risk-row-track"><div class="risk-row-fill risk-row-fill-${tier}" style="width:${pct}%"></div></div>
+        <div class="risk-row-value">${esc(slip)}</div>
+      </div>
+    `;
+  }).join("");
+
+  div.innerHTML = `
+    <p class="risk-overview-title">Risk overview</p>
+    <p class="risk-overview-sub">Orders ranked by urgency - longer, redder bars need attention first.</p>
+    <div class="risk-legend">
+      <span class="risk-legend-item"><span class="risk-legend-dot risk-legend-dot-critical"></span>Critical</span>
+      <span class="risk-legend-item"><span class="risk-legend-dot risk-legend-dot-high"></span>High</span>
+      <span class="risk-legend-item"><span class="risk-legend-dot risk-legend-dot-medium"></span>Medium</span>
+      <span class="risk-legend-item"><span class="risk-legend-dot risk-legend-dot-low"></span>Low</span>
+    </div>
+    ${rows}
+  `;
+  return div;
 }
 
 async function analyze() {
@@ -139,9 +211,12 @@ function render(data) {
   const narrative = document.createElement("div");
   narrative.className = "narrative " + (data.no_impact ? "no-impact" : "impact");
   narrative.innerHTML = `<strong>${data.no_impact ? "NO IMPACT" : "IMPACT ASSESSMENT"}</strong><p>${esc(data.narrative)}</p>`;
+  const groundingCheck = renderGroundingCheck(data);
+  if (groundingCheck) narrative.appendChild(groundingCheck);
   resultEl.appendChild(narrative);
 
   if (!data.no_impact && data.affected_orders.length) {
+    resultEl.appendChild(renderRiskOverview(data));
     resultEl.appendChild(renderSummary(data));
   }
 
@@ -158,7 +233,8 @@ function render(data) {
   if (!data.no_impact) {
     const list = document.createElement("div");
     list.className = "order-list";
-    data.affected_orders.forEach(o => list.appendChild(renderOrder(o)));
+    const maxScore = Math.max(...data.affected_orders.map(o => o.urgency_score));
+    data.affected_orders.forEach(o => list.appendChild(renderOrder(o, maxScore)));
     resultEl.appendChild(list);
   }
 
