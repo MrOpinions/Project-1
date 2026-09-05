@@ -2,23 +2,25 @@ import json
 import os
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request, send_from_directory
 
 from core.report import build_report
 
-app = Flask(__name__)
+FRONTEND_DIST = Path(__file__).parent / "frontend" / "dist"
+
+app = Flask(__name__, static_folder=str(FRONTEND_DIST), static_url_path="")
 
 SAMPLE_NOTICES_PATH = Path(__file__).parent / "data" / "sample_notices.json"
 
 
 @app.route("/")
 def landing():
-    return render_template("landing.html")
+    return send_from_directory(FRONTEND_DIST, "index.html")
 
 
 @app.route("/app")
 def index():
-    return render_template("app.html")
+    return send_from_directory(FRONTEND_DIST, "app.html")
 
 
 @app.route("/api/samples")

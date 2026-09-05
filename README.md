@@ -24,7 +24,8 @@ The system recommends; a human operator decides and acts.
 
 Core pipeline complete and working end-to-end: extraction, entity resolution,
 deterministic impact tracing, action/trade-off generation, and a grounded
-report, wired to a single-page UI. See commit history for build order.
+report, wired to a two-page UI (a landing page and the workspace tool). See
+commit history for build order.
 
 ## How it works (architecture)
 
@@ -92,6 +93,19 @@ Sample notices for manual testing (production halt, carrier delay, warehouse
 incident, and two deliberate no-impact cases) are in `data/sample_notices.json`
 and selectable from the UI's dropdown.
 
+## Frontend
+
+The UI (`frontend/`) is React + Tailwind + shadcn/ui (the `neutral`
+preset - a pure black-to-grey scale, dark mode locked), with a separately
+validated status palette (good/warning/serious/critical) reserved for
+urgency/risk, since that's meaning, not decoration. Severity is shown as
+a "Risk overview" bar chart and per-order meters rather than as prose.
+
+**The built output (`frontend/dist/`) is committed.** Flask serves it
+directly (see `app.py`) - a judge running this only needs Python; Node.js
+is only required if you want to change the UI and rebuild it (see
+`frontend/README.md`).
+
 ## Running it
 
 ```bash
@@ -100,7 +114,8 @@ python app.py
 ```
 
 Then open `http://localhost:8000` (landing page -> `/app`, the actual
-workspace).
+workspace). No build step, no second command, no Node.js needed at
+runtime - the frontend is already built and committed.
 
 Requires a `GEMINI_API_KEY` in a `.env` file (see `.env.example`). No other
 external services are called. Entity embeddings are precomputed and committed
@@ -115,7 +130,8 @@ python -m pytest tests/ -v
 
 Covers the deterministic impact engine (exposure tracing, slip calculation,
 the no-double-counting fix for shared spare stock) against the seeded
-dataset. No API calls, runs in well under a second.
+dataset, plus the narrative grounding check that catches a hallucinated
+citation. No API calls, runs in well under a second.
 
 ## Demo video
 
