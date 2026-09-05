@@ -99,7 +99,8 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Then open `http://localhost:8000`.
+Then open `http://localhost:8000` (landing page -> `/login`, a decorative
+access gate with no real authentication -> `/app`, the actual workspace).
 
 Requires a `GEMINI_API_KEY` in a `.env` file (see `.env.example`). No other
 external services are called. Entity embeddings are precomputed and committed

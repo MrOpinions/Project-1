@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Disruption Response Assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav class="topbar">
+    <a href="/" class="topbar-brand">
+      <img src="/static/img/logo-light.png" alt="" class="topbar-logo">
+      <span>Disruption Response Assistant</span>
+    </a>
+    <a href="/login" class="topbar-link">Sign out</a>
+  </nav>
+
+  <div class="shell">
+    <header>
+      <h1>Impact Workspace</h1>
+      <p class="sub">Paste a disruption notice as it actually arrives. The system maps it to your data, traces the impact, and proposes an action plan. It does not act on its own.</p>
+    </header>
+
+    <main>
+      <section class="input-panel">
+        <label for="notice" class="visually-hidden">Disruption notice text</label>
+        <textarea id="notice" placeholder="Paste a supplier email, carrier delay notice, or warehouse incident report here..."></textarea>
+        <div class="controls">
+          <label for="sample-picker" class="visually-hidden">Load a sample notice</label>
+          <select id="sample-picker">
+            <option value="">Load a sample notice...</option>
+          </select>
+          <button id="clear-btn" class="secondary" type="button">Clear</button>
+          <button id="analyze-btn">Analyze</button>
+          <span class="hint">Ctrl+Enter to analyze</span>
+        </div>
+      </section>
+
+      <section id="loading" class="loading-panel" hidden>
+        <div class="spinner"></div>
+        <p>Extracting notice, resolving entities, tracing impact...</p>
+      </section>
+
+      <section id="empty" class="empty-panel">
+        <p>No notice analyzed yet. Paste one above, or load a sample, then press Analyze.</p>
+      </section>
+
+      <section id="result" class="result-panel" hidden></section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

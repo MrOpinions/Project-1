@@ -12,8 +12,18 @@ SAMPLE_NOTICES_PATH = Path(__file__).parent / "data" / "sample_notices.json"
 
 
 @app.route("/")
+def landing():
+    return render_template("landing.html")
+
+
+@app.route("/login")
+def login():
+    return render_template("login.html")
+
+
+@app.route("/app")
 def index():
-    return render_template("index.html")
+    return render_template("app.html")
 
 
 @app.route("/api/samples")
