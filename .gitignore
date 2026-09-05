@@ -1,4 +1,5 @@
 .env
+Work.md
 __pycache__/
 *.pyc
 .venv/
